@@ -1,6 +1,6 @@
 
-exports.unhandledException = function(error) {
-  console.log("FWChromecast ERROR: " + error);
+exports.unhandledException = function (error) {
+    console.log("FWChromecast ERROR: " + error);
 };
 
 /**
@@ -9,31 +9,31 @@ exports.unhandledException = function(error) {
  *
  * @param receiverAppId, the receiverAppId to filter devices
  */
-exports.scanForDevices = function(receiverAppId) {
-  var t = this;
-  t.receiverAppId = receiverAppId;
+exports.scanForDevices = function (receiverAppId) {
+    var t = this;
+    t.receiverAppId = receiverAppId;
 
-  if(typeof(receiverAppId) == 'undefined') {
-    return false;
-  }
+    if (typeof (receiverAppId) == 'undefined') {
+        return false;
+    }
 
-  // this method should only be called once.
-  if(!t.startedListening) {
-    t.startedListening = true;
-    t.devices = {};
-    cordova.exec(function(response){
-      response = JSON.parse(response);
-      if(response.command == 'deviceDidComeOnline') {
-        t.devices[response.data.id] = response.data;
-        $(t).trigger('GCK.deviceDidComeOnline', response.data);
-      } else {
-        delete t.devices[response.data.id];
-        $(t).trigger('GCK.deviceDidGoOffline', response.data);
-      }
-    }, t.unhandledException, "FWChromecast", "scanForDevices", [receiverAppId]);
-  }
+    // this method should only be called once.
+    if (!t.startedListening) {
+        t.startedListening = true;
+        t.devices = {};
+        cordova.exec(function (response) {
+            response = JSON.parse(response);
+            if (response.command == 'deviceDidComeOnline') {
+                t.devices[response.data.id] = response.data;
+                $(t).trigger('deviceDidComeOnline', response.data);
+            } else {
+                delete t.devices[response.data.id];
+                $(t).trigger('deviceDidGoOffline', response.data);
+            }
+        }, t.unhandledException, "FWChromecast", "scanForDevices", [receiverAppId]);
+    }
 
-  return true;
+    return true;
 };
 
 /**
@@ -41,56 +41,55 @@ exports.scanForDevices = function(receiverAppId) {
  *
  * @param device, the device identifier of the device to select.
  */
-exports.selectDevice = function(device) {
-  var dfd = $.Deferred();
-  var t = this;
+exports.selectDevice = function (device) {
+    var t = this;
 
-  if(typeof(device) == 'undefined') {
-    dfd.reject();
-    return dfd.promise();
-  }
-
-  if(typeof(t.devices[device]) == 'undefined') {
-    dfd.reject();
-    return dfd.promise();
-  }
-
-  cordova.exec(function(response){
-    response = JSON.parse(response);
-    if(response.command == 'deviceConnected') {
-      t.connected = t.devices[device];
-      $(t).trigger('GCK.deviceConnected', t.connected);
-      dfd.resolve(response.data, response.command);
+    if (typeof (device) == 'undefined') {
+        return Promise.reject();
     }
 
-    if(response.command == 'failToConnect') {
-      $(t).trigger('GCK.failToConnect', response.data);
-      dfd.reject(response.data, response.command);
+    if (typeof (t.devices[device]) == 'undefined') {
+        return Promise.reject();
     }
 
-    if(response.command == 'disconnectWithError') {
-      $(t).trigger('GCK.disconnectWithError', response.data);
-      dfd.reject(response.data, response.command);
-    }
-    if(response.command == 'applicationLaunched') {
-      $(t).trigger('GCK.applicationLaunched', response.data);
-    }
+    return new Promise(function (resolve, reject) {
 
-    if(response.command == 'failToConnectToApp') {
-     $(t).trigger('GCK.failToConnectToApp', response.data);
-    }
+        cordova.exec(function (response) {
+            response = JSON.parse(response);
+            if (response.command == 'deviceConnected') {
+                t.connected = t.devices[device];
+                $(t).trigger('deviceConnected', t.connected);
+                resolve(response.data);
+            }
 
-    if(response.command == 'receiveStatusForApp') {
-      $(t).trigger('GCK.failToConnect', response.data);
-    }
+            if (response.command == 'failToConnect') {
+                $(t).trigger('failToConnect', response.data);
+                reject(response.data);
+            }
 
-    if(response.command == 'receiveMessage') {
-      $(t).trigger('GCK.receiveMessage', response.data);
-      $(t).trigger('GCK.receiveMessage:' + response.data.channelName, response.data);
-    }
+            if (response.command == 'disconnectWithError') {
+                $(t).trigger('disconnectWithError', response.data);
+                reject(response.data);
+            }
+            if (response.command == 'applicationLaunched') {
+                $(t).trigger('applicationLaunched', response.data);
+            }
 
-  }, t.unhandledException, "FWChromecast", "selectDevice", [device]);
-  return dfd.promise();
+            if (response.command == 'failToConnectToApp') {
+                $(t).trigger('failToConnectToApp', response.data);
+            }
+
+            if (response.command == 'receiveStatusForApp') {
+                $(t).trigger('failToConnect', response.data);
+            }
+
+            if (response.command == 'receiveMessage') {
+                $(t).trigger('receiveMessage', response.data);
+                $(t).trigger('receiveMessage:' + response.data.channelName, response.data);
+            }
+
+        }, t.unhandledException, "FWChromecast", "selectDevice", [device]);
+    });
 };
 
 /**
@@ -98,41 +97,45 @@ exports.selectDevice = function(device) {
  *
  * @param receiverAppId, the receiverAppId of the app to start.
  */
-exports.launchApplication = function() {
-  var dfd = $.Deferred();
-  var t = this;
+exports.launchApplication = function () {
+    var t = this;
 
-  $(t).on("GCK.applicationLaunched", function(e, metadata){
-    dfd.resolve(metadata, "applicationLaunched");
-  });
-  $(t).on("fGCK.failToConnectToApp", function(e, error){
-    dfd.reject(error, "failToConnectToApp");
-  });
-  cordova.exec(undefined, t.unhandledException, "FWChromecast", "launchApplication", []);
-  return dfd.promise();
+    return new Promise(function (resolve, reject) {
+
+        $(t).on("applicationLaunched", function (e, metadata) {
+            resolve(metadata);
+        });
+        $(t).on("ffailToConnectToApp", function (e, error) {
+            reject(error);
+        });
+        cordova.exec(undefined, t.unhandledException, "FWChromecast", "launchApplication", []);
+    });
 };
 
 /**
  * Disconnect from application.
  */
-exports.disconnect = function() {
-  var dfd = $.Deferred();
-  var t = this;
-  cordova.exec(undefined, t.unhandledException, "FWChromecast", "disconnect", []);
-  return dfd.promise();
+exports.disconnect = function () {
+    var t = this;
+    return new Promise(function (resolve, reject) {
+
+        cordova.exec(undefined, t.unhandledException, "FWChromecast", "disconnect", []);
+    });
 };
 
 /**
  * Start the default media channel.
  */
-exports.startMediaChannel = function() {
-  var dfd = $.Deferred();
-  var t = this;
-  cordova.exec(function(response){
-    response = JSON.parse(response);
-    // TODO: Implement all media channel callback methods
-  }, t.unhandledException, "FWChromecast", "startMediaChannel", []);
-  return dfd.promise();
+exports.startMediaChannel = function () {
+    var t = this;
+    return new Promise(function (resolve, reject) {
+
+        cordova.exec(function (response) {
+            response = JSON.parse(response);
+            // TODO: Implement all media channel callback methods
+            resolve();
+        }, t.unhandledException, "FWChromecast", "startMediaChannel", []);
+    });
 };
 
 /**
@@ -143,33 +146,33 @@ exports.startMediaChannel = function() {
  * @param mediaType, mediaType (e.g. "video/mp4")
  * @param subtitle to display
  */
-exports.loadMedia = function(title, mediaUrl, mediaType, subtitle) {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "loadMedia", [title, mediaUrl, mediaType, subtitle]);
-  return this;
+exports.loadMedia = function (title, mediaUrl, mediaType, subtitle) {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "loadMedia", [title, mediaUrl, mediaType, subtitle]);
+    return this;
 };
 
 /**
  * Play the current media item on the default media channel.
  */
-exports.playMedia = function() {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "playMedia", []);
-  return this;
+exports.playMedia = function () {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "playMedia", []);
+    return this;
 };
 
 /**
  * Pause the current media item on the default media channel.
  */
-exports.pauseMedia = function() {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "pauseMedia", []);
-  return this;
+exports.pauseMedia = function () {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "pauseMedia", []);
+    return this;
 };
 
 /**
  * Stop the current media item on the default media channel.
  */
-exports.stopMedia = function() {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "stopMedia", []);
-  return this;
+exports.stopMedia = function () {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "stopMedia", []);
+    return this;
 };
 
 /**
@@ -177,9 +180,9 @@ exports.stopMedia = function() {
  *
  * @param mute, to mute or not to mute the media item
  */
-exports.muteMedia = function(mute) {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "muteMedia", [mute]);
-  return this;
+exports.muteMedia = function (mute) {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "muteMedia", [mute]);
+    return this;
 };
 
 /**
@@ -187,9 +190,9 @@ exports.muteMedia = function(mute) {
  *
  * @param seektime, the time to seek to
  */
-exports.seekMedia = function(seektime) {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "seekMedia", [seektime]);
-  return this;
+exports.seekMedia = function (seektime) {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "seekMedia", [seektime]);
+    return this;
 };
 
 /**
@@ -197,7 +200,7 @@ exports.seekMedia = function(seektime) {
  *
  * @param volume, audo volume between 0 and 1 (e.g. 0.35)
  */
-exports.setVolumeForMedia = function(volume) {
-  cordova.exec(undefined, this.unhandledException, "FWChromecast", "setVolumeForMedia", [volume]);
-  return this;
+exports.setVolumeForMedia = function (volume) {
+    cordova.exec(undefined, this.unhandledException, "FWChromecast", "setVolumeForMedia", [volume]);
+    return this;
 };
