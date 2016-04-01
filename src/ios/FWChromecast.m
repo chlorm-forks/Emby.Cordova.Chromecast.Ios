@@ -31,6 +31,9 @@
                                                                       andCallbackId:command.callbackId];
     [self.selectDeviceDelegate selectDevice:[self.deviceScannerDelegate findDevice:deviceId]];
 }
+- (void)sendMessage:(NSString *)message {
+    [self.selectDeviceDelegate sendMessage:message];
+}
 
 - (void)launchApplication:(CDVInvokedUrlCommand*)command
 {
@@ -50,7 +53,7 @@
     [self.selectDeviceDelegate joinApplication:self.receiverAppId];
 }
 
-- (void)disconnect
+- (void)disconnect:(CDVInvokedUrlCommand*)command
 {
     if(self.selectDeviceDelegate != nil) {
         [self.selectDeviceDelegate disconnect];
