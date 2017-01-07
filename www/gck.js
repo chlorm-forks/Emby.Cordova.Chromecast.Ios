@@ -25,10 +25,10 @@ exports.scanForDevices = function (receiverAppId) {
             response = JSON.parse(response);
             if (response.command == 'deviceDidComeOnline') {
                 t.devices[response.data.id] = response.data;
-                $(t).trigger('deviceDidComeOnline', response.data);
+                Events.trigger(t, 'deviceDidComeOnline', [response.data]);
             } else {
                 delete t.devices[response.data.id];
-                $(t).trigger('deviceDidGoOffline', response.data);
+                Events.trigger(t, 'deviceDidGoOffline', [response.data]);
             }
         }, t.unhandledException, "FWChromecast", "scanForDevices", [receiverAppId]);
     }
@@ -58,33 +58,33 @@ exports.selectDevice = function (device) {
             response = JSON.parse(response);
             if (response.command == 'deviceConnected') {
                 t.connected = t.devices[device];
-                $(t).trigger('deviceConnected', t.connected);
+                Events.trigger(t, 'deviceConnected', [t.connected]);
                 resolve(response.data);
             }
 
             if (response.command == 'failToConnect') {
-                $(t).trigger('failToConnect', response.data);
+                Events.trigger(t, 'failToConnect', [response.data]);
                 reject(response.data);
             }
 
             if (response.command == 'disconnectWithError') {
-                $(t).trigger('disconnectWithError', response.data);
+                Events.trigger(t, 'disconnectWithError', [response.data]);
                 reject(response.data);
             }
             if (response.command == 'applicationLaunched') {
-                $(t).trigger('applicationLaunched', response.data);
+                Events.trigger(t, 'applicationLaunched', [response.data]);
             }
 
             if (response.command == 'failToConnectToApp') {
-                $(t).trigger('failToConnectToApp', response.data);
+                Events.trigger(t, 'failToConnectToApp', [response.data]);
             }
 
             if (response.command == 'receiveStatusForApp') {
-                $(t).trigger('failToConnect', response.data);
+                Events.trigger(t, 'failToConnect', [response.data]);
             }
 
             if (response.command == 'receiveMessage') {
-                $(t).trigger('receiveMessage', response.data);
+                Events.trigger(t, 'receiveMessage', [response.data]);
             }
 
         }, t.unhandledException, "FWChromecast", "selectDevice", [device]);
@@ -102,8 +102,8 @@ exports.launchApplication = function () {
     return new Promise(function (resolve, reject) {
 
         function unbind() {
-            $(t).off("applicationLaunched", onLaunched);
-            $(t).off("failToConnectToApp", onFailed);
+            Events.off(t, "applicationLaunched", onLaunched);
+            Events.off(t, "failToConnectToApp", onFailed);
         }
 
         function onLaunched(e, metadata) {
@@ -119,8 +119,8 @@ exports.launchApplication = function () {
             }, 500);
         }
 
-        $(t).on("applicationLaunched", onLaunched);
-        $(t).on("failToConnectToApp", onFailed);
+        Events.on(t, "applicationLaunched", onLaunched);
+        Events.on(t, "failToConnectToApp", onFailed);
         cordova.exec(undefined, t.unhandledException, "FWChromecast", "launchApplication", []);
     });
 };
@@ -136,8 +136,8 @@ exports.joinApplication = function () {
     return new Promise(function (resolve, reject) {
 
         function unbind() {
-            $(t).off("applicationLaunched", onLaunched);
-            $(t).off("failToConnectToApp", onFailed);
+            Events.off(t, "applicationLaunched", onLaunched);
+            Events.off(t, "failToConnectToApp", onFailed);
         }
 
         function onLaunched(e, metadata) {
@@ -152,8 +152,8 @@ exports.joinApplication = function () {
             }, 500);
         }
 
-        $(t).on("applicationLaunched", onLaunched);
-        $(t).on("failToConnectToApp", onFailed);
+        Events.on(t, "applicationLaunched", onLaunched);
+        Events.on(t, "failToConnectToApp", onFailed);
 
         cordova.exec(undefined, t.unhandledException, "FWChromecast", "joinApplication", []);
     });
